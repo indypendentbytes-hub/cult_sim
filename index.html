@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cultivator Network — Phase 1 Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F1E4; --ink:#26241C; --ink-soft:#57543F; --line:#D8D0B8;
+    --crop:#43512F; --crop-deep:#2B331D; --clay:#AD5A2B; --wheat:#C79A34;
+    --card:#FBF9F2; --bad:#8A3324; --good:#3E5C33; --ext:#8A6A2E; --extbg:#F1E6CB;
+    --teal:#2E6B67; --gray:#5A5748; --amber:#9C6B1F;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; line-height:1.45; padding-bottom:60px; }
+  h1,h2,h3{ font-family:'Fraunces',serif; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:20px 16px 0; }
+  header.top{ border-bottom:2px solid var(--crop-deep); padding-bottom:14px; margin-bottom:18px; }
+  header.top .eyebrow{ font-size:13px; color:var(--ink-soft); margin-bottom:2px; }
+  header.top h1{ font-size:28px; font-weight:600; margin:0 0 6px; color:var(--crop-deep); }
+  header.top p{ margin:0; color:var(--ink-soft); font-size:14.5px; max-width:680px; }
+  .statbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:16px; }
+  .odometer{ font-family:'IBM Plex Mono', monospace; background:var(--crop-deep); color:var(--paper); padding:9px 14px; border-radius:3px; font-size:13.5px; display:flex; gap:8px; align-items:baseline; }
+  .odometer b{ font-size:17px; }
+  button{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; padding:9px 14px; border-radius:3px; border:1.5px solid var(--crop-deep); background:var(--card); color:var(--crop-deep); cursor:pointer; }
+  button:hover{ background:var(--crop-deep); color:var(--paper); }
+  button.ghost{ border-color:var(--line); color:var(--ink-soft); }
+  button.ghost:hover{ background:var(--ink-soft); color:var(--paper); }
+  #status-msg{ font-size:13px; color:var(--ink-soft); margin-left:2px; }
+  #import-file{ display:none; }
+  .archive-note{ font-size:12px; color:var(--ink-soft); margin-top:8px; }
+  .phase-note{ margin-top:16px; padding:12px 14px; background:#EFE7D0; border-left:3px solid var(--wheat); font-size:13.5px; color:var(--ink-soft); border-radius:2px; }
+  .legend{ display:flex; gap:14px; margin-top:10px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.crop{ background:var(--good); } .dot.ext{ background:var(--ext); }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:20px; }
+  @media (max-width:720px){ .grid{ grid-template-columns:1fr; } }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:4px; padding:14px 16px; }
+  .card .rowtop{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .card h3{ font-size:17px; margin:0 0 2px; color:var(--crop-deep); }
+  .card .loc{ font-size:12.5px; color:var(--ink-soft); margin:0 0 8px; }
+  .card .focusline{ font-size:13px; margin:0 0 3px; color:var(--ink); }
+  .card .focusline.ext{ color:var(--ext); }
+  .badge{ font-size:11px; font-weight:600; padding:2px 7px; border-radius:20px; white-space:nowrap; }
+  .badge.ok{ background:#DEE7D2; color:var(--good); }
+  .badge.issue{ background:#F0D9CD; color:var(--bad); }
+  .metrics{ display:flex; gap:14px; margin:10px 0; font-size:12.5px; flex-wrap:wrap; }
+  .metrics div b{ display:block; font-family:'IBM Plex Mono',monospace; font-size:14.5px; color:var(--crop-deep); }
+  .metrics div.ext b{ color:var(--ext); }
+  .today{ font-size:13px; padding:8px 10px; background:#F1EDDD; border-radius:3px; margin-bottom:6px; }
+  .today .ext{ color:var(--ext); }
+  .flag{ font-size:12px; color:var(--ext); background:var(--extbg); padding:4px 8px; border-radius:3px; margin-bottom:6px; }
+  .issues-line{ font-size:12.5px; color:var(--bad); margin-bottom:8px; }
+  details summary{ font-size:12.5px; color:var(--ink-soft); cursor:pointer; margin-top:4px; }
+  .log-entry{ font-size:12.5px; padding:5px 0; border-top:1px dotted var(--line); color:var(--ink-soft); }
+  .log-entry b{ color:var(--ink); }
+  .log-entry .tag{ font-size:10.5px; font-weight:700; margin-right:5px; }
+  .log-entry .tag.crop{ color:var(--good); } .log-entry .tag.ext{ color:var(--ext); } .log-entry .tag.land{ color:var(--clay); }
+  .channels{ font-size:12px; color:var(--ink-soft); margin-top:8px; }
+  .channels span{ display:inline-block; padding:2px 7px; border-radius:20px; margin:2px 3px 0 0; }
+  .channels span.crop{ background:#DEE7D2; color:var(--good); }
+  .channels span.ext{ background:var(--extbg); color:var(--ext); }
+  .capbox{ margin-top:10px; font-size:12px; color:var(--ink-soft); }
+  .caprow{ display:flex; align-items:center; gap:6px; margin:3px 0; }
+  .caprow .label{ width:150px; flex-shrink:0; }
+  .caprow .bar{ flex:1; height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+  .caprow .fill{ height:100%; }
+  .caprow .val{ width:34px; text-align:right; font-family:'IBM Plex Mono',monospace; }
+  .fill.cpc{ background:var(--good); } .fill.iac{ background:var(--teal); } .fill.orl{ background:var(--gray); } .fill.wil{ background:var(--amber); }
+  .land-entry{ font-size:12px; padding:6px 0; border-top:1px dotted var(--line); }
+  .land-entry .trig{ font-weight:700; color:var(--clay); }
+  .feed-section{ margin-top:28px; }
+  .feed-section h2{ font-size:19px; color:var(--crop-deep); margin-bottom:8px; }
+  .feed{ background:var(--card); border:1px solid var(--line); border-radius:4px; padding:6px 14px; max-height:340px; overflow-y:auto; }
+  .feed .log-entry{ font-size:13px; }
+  footer.foot{ margin-top:26px; font-size:12px; color:var(--ink-soft); text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">INDYpendent Bytes — Phase 1</div>
+    <h1>Cultivator Network Tracker</h1>
+    <p>Ten Central Indiana operations, run forward one simulated day at a time. Every operation carries an IB-eligible crop line; five also run a livestock, dairy, apiary, egg, or aquaculture enterprise that's external to IB but shares the same labor, land, and cash. Animal and system care are hard constraints — crop work yields to them, not the other way around.</p>
+    <div class="statbar">
+      <div class="odometer">Day <b id="day-count">—</b> · <span id="sim-date">—</span></div>
+      <button id="sync-btn">Refresh cloud state</button>
+      <button class="ghost" id="advance-btn" style="display:none">Advance +1 day (test)</button>
+      <button class="ghost" id="export-btn">Export archive</button>
+      <button class="ghost" id="import-btn" style="display:none">Import archive</button>
+      <input id="import-file" type="file" accept="application/json,.json">
+      <button class="ghost" id="reset-btn" style="display:none">Reset network</button>
+      <span id="status-msg"></span>
+    </div>
+    <div class="phase-note">Only crop-line channels are IB-eligible. Non-crop enterprises sell externally and are modeled for how they constrain the farm, not as IB volume. Land allocation only moves at seasonal planning points or major disruptions — never as a daily adjustment.</div>
+    <div class="legend"><span><i class="dot crop"></i>IB-eligible crop activity</span><span><i class="dot ext"></i>External / non-IB activity</span></div>
+    <div class="archive-note">Export creates a portable JSON archive containing current state, the full event audit log, and one daily ledger snapshot per simulated date. Import validates the roster before replacing the active simulation.</div>
+  </header>
+
+  <div class="grid" id="card-grid"></div>
+
+  <div class="feed-section">
+    <h2>Network activity feed</h2>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <footer class="foot">Authoritative simulation state is stored and advanced in Supabase. This page is a read-only cloud viewer; it can be closed without stopping the simulation.</footer>
+</div>
+
+<script>
+/* ---------------- deterministic RNG ---------------- */
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=Math.imul(31,h)+s.charCodeAt(i)|0; } return h; }
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pick(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function toISO(d){ return d.toISOString().slice(0,10); }
+function addDays(iso, n){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return toISO(d); }
+function weekday(iso){ return new Date(iso+'T00:00:00Z').getUTCDay(); }
+function monthOf(iso){ return new Date(iso+'T00:00:00Z').getUTCMonth()+1; }
+function mmdd(iso){ return iso.slice(5); }
+function daysBetween(a,b){ return Math.round((new Date(b+'T00:00:00Z') - new Date(a+'T00:00:00Z'))/86400000); }
+
+const ARCHIVE_FORMAT = 'ib-cultivator-network-archive';
+const ARCHIVE_VERSION = 3;
+const STATE_VERSION = 3;
+const STORAGE_KEY = 'network-state-v3';
+const LEGACY_STORAGE_KEY = 'network-state-v2';
+
+function todayISO(){
+  const parts = new Intl.DateTimeFormat('en-US',{timeZone:'America/Indiana/Indianapolis',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const get = type => parts.find(p=>p.type===type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+function escapeHtml(v){ return String(v ?? '').replace(/[&<>'"]/g, ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;' }[ch])); }
+function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
+
+const SEVERE_KEYWORDS = ['hail','compressor','contaminated','generator','lame','mite counts up','bid dropped','hydraulic leak','coyote'];
+function isSevere(text){ return SEVERE_KEYWORDS.some(k=>text.includes(k)); }
+
+/* ---------------- persona roster ---------------- */
+const CULTIVATORS = [
+{ id:'webb', name:'Marcus Webb', op:'Webb Family Grain & Poultry', county:'Hancock County', town:'Greenfield',
+  scale:'40 acres, 3rd generation',
+  dependency:'Aging combine and mill equipment; poultry processing draws on the same two seasonal hands as the grain harvest',
+  demandDay:5,
+  crop:{ focus:'Food-grade heritage grain (red fife wheat, open-pollinated corn)', channels:['wholesale_distributor','grain_wholesale'], baseRev:[150,420], committedFraction:0.60,
+    statusPool:['combining the red fife block','milling last week\'s wheat lot','loading a grain order for the mill account','turning the cover-crop ground'],
+    issues:['equipment: mill belt slipped, half-day repair delay','equipment: combine hydraulic leak, contractor booked for tomorrow','price: the mill account renegotiated its per-bushel rate'] },
+  nonCrop:{ focus:'Pastured broiler chickens', label:'Poultry', channels:['farmers_market','restaurant_direct'], baseRev:[70,200],
+    statusPool:['processing a broiler batch for Friday pickups','moving the broiler tractors to fresh pasture'],
+    issues:['predator: lost several birds to a nighttime coyote','feed: local feed mill delayed the poultry ration delivery','labor: processing ran long and pulled both hands off the grain line'] },
+  willingnessBaseline:55
+},
+{ id:'raman', name:'Priya Raman', op:'Raman Greens', county:'Hamilton County', town:'Westfield',
+  scale:'1.5 acres, first-generation, off-farm day job in software',
+  dependency:'High tunnel heating cost; farms evenings/weekends around a full-time job',
+  demandDay:null,
+  crop:{ focus:'Asian specialty greens & herbs (bok choy, mizuna, shiso) in a high tunnel', channels:['csa_delivery','online_delivery_platform','restaurant_direct'], baseRev:[90,260], committedFraction:0.30,
+    statusPool:['succession-planting the mizuna bed','harvesting shiso for Thursday chef orders','hand-thinning bok choy seedlings','venting the tunnel against the afternoon heat'],
+    issues:['tunnel: irrigation timer failed overnight, some scorch on the shiso bed','schedule: day-job crunch pushed harvest to after dark','pest: aphid pressure on the mizuna, spot-treating'] },
+  nonCrop:null, willingnessBaseline:75
+},
+{ id:'simmons', name:'Dorothy "Dot" Simmons', op:'Dot\'s Corner Lot', county:'Marion County', town:'Indianapolis (near-eastside)',
+  scale:'0.75 acres, retired teacher, volunteer-run',
+  dependency:'Depends on a rotating crew of neighborhood volunteers; no cold storage on site',
+  demandDay:null,
+  crop:{ focus:'Mixed vegetables and cut flowers on a reclaimed urban lot', channels:['farm_stand','farmers_market','church_community_market'], baseRev:[40,150], committedFraction:0.15,
+    statusPool:['cutting zinnias and celosia for market bouquets','picking okra and peppers before the heat sets in','turning the compost with two volunteers','building out a fall greens bed'],
+    issues:['labor: only one volunteer showed for Saturday harvest','heat: no cold storage, held greens wilted before market','flowers: deer got into the dahlia row overnight'] },
+  nonCrop:null, willingnessBaseline:80
+},
+{ id:'alvarez', name:'The Alvarez Family', op:'Alvarez Orchard & Farm', county:'Johnson County', town:'Franklin',
+  scale:'120 acres, multi-generation, mixed family and hired labor',
+  dependency:'New cold-storage barn still being paid down; cash flow tied to the fruit crop timing',
+  demandDay:null,
+  crop:{ focus:'Diversified apples, peaches, and vegetables on transitioning row-crop acreage', channels:['wholesale_distributor','farm_stand','school_district_pilot'], baseRev:[300,900], committedFraction:0.55,
+    statusPool:['picking peaches ahead of the weekend heat','grading apples for the school district order','running the cold-storage compressor check','pressing cider from drop fruit'],
+    issues:['storage: cold-storage compressor cycling oddly, technician called','weather: hail bruised a section of the peach block','logistics: delivery truck failed inspection, rerouted a wholesale run'] },
+  nonCrop:null, willingnessBaseline:60
+},
+{ id:'kern', name:'Tobias Kern', op:'Kern Mushroom Works', county:'Boone County', town:'Lebanon',
+  scale:'Converted warehouse bay, solo operator, engineer background',
+  dependency:'No land dependency, but fully dependent on climate-control electricity and clean substrate supply',
+  demandDay:null,
+  crop:{ focus:'Indoor cultivated mushrooms (lion\'s mane, shiitake, oyster)', channels:['restaurant_direct','farmers_market','food_hub_aggregator'], baseRev:[120,340], committedFraction:0.35,
+    statusPool:['inoculating fresh substrate bags','fruiting-room humidity check','flushing the lion\'s mane blocks','packing wholesale totes for tomorrow\'s drop'],
+    issues:['power: a brief outage spiked humidity in the fruiting room','substrate: contaminated bag, had to cull a block','logistics: chef order changed day-of, had to re-route inventory'] },
+  nonCrop:null, willingnessBaseline:70
+},
+{ id:'thompson', name:'Grace & Nia Thompson', op:'Thompson Sisters Farm', county:'Madison County', town:'Anderson',
+  scale:'8 acres, first-generation Black women-owned, faith-community CSA network',
+  dependency:'One aging pickup truck for all deliveries; egg processing competes with vegetable harvest for the same morning hours',
+  demandDay:6,
+  crop:{ focus:'Heritage vegetables (collards, okra, heirloom tomatoes)', channels:['csa_delivery','wholesale_distributor'], baseRev:[60,170], committedFraction:0.45,
+    statusPool:['harvesting collards and okra','packing CSA boxes','staking the heirloom tomato rows'],
+    issues:['weather: standing water in the lower field after heavy rain','labor: CSA packing ran long, delayed the vegetable delivery window'] },
+  nonCrop:{ focus:'Pastured eggs', label:'Eggs', channels:['church_community_market','farmers_market'], baseRev:[35,100],
+    statusPool:['moving the laying flock to fresh pasture','candling and packing eggs for Sunday market'],
+    issues:['flock: a hawk got into the mobile coop overnight','feed: layer feed running low, sourcing from a neighboring farm','transport: truck wouldn\'t start, delayed the egg run'] },
+  willingnessBaseline:78
+},
+{ id:'osei', name:'Walt Osei', op:'Osei Farm & Apiary', county:'Hendricks County', town:'Danville',
+  scale:'~6 acres of berries/herbs plus 200 hives across 6 leased sites',
+  dependency:'Colony health is weather- and mite-pressure sensitive; extraction season overlaps the berry and herb harvest window',
+  demandDay:1,
+  crop:{ focus:'Brambleberries, elderberries, and culinary herbs grown around the hive sites', channels:['farmers_market','restaurant_direct'], baseRev:[70,190], committedFraction:0.25,
+    statusPool:['picking raspberries ahead of the birds','cutting and bunching culinary herbs','netting the elderberry rows'],
+    issues:['pest: Japanese beetles hit the raspberry canes','weather: a cool snap slowed berry ripening'] },
+  nonCrop:{ focus:'Apiary and honey products across leased hive sites', label:'Honey', channels:['wholesale_distributor','online_shipping'], baseRev:[100,320],
+    statusPool:['pulling supers at the north site','bottling the summer wildflower batch','checking mite counts across the leased yards'],
+    issues:['colony: mite counts up at the north site, treating early','feed: sugar syrup stock low heading into a dearth period','logistics: extraction equipment backlog pushed a bottling run'] },
+  willingnessBaseline:50
+},
+{ id:'whitfield', name:'Sam Whitfield', op:'Whitfield Grain & Specialty', county:'Shelby County', town:'Shelbyville',
+  scale:'600 acres commodity + 6 acres specialty pilot',
+  dependency:'Cash flow still tied to commodity grain prices; specialty block is a side experiment, skeptical of new coordination platforms',
+  demandDay:null,
+  crop:{ focus:'Commodity-background grain plus a specialty pilot block (popcorn, dry beans)', channels:['grain_wholesale','farmers_market','online_delivery_platform'], baseRev:[60,700], committedFraction:0.50,
+    statusPool:['combining the main grain acreage','hand-harvesting the popcorn pilot block','bagging dry beans for market','checking the elevator bid board'],
+    issues:['price: local elevator bid dropped, held grain rather than sell','equipment: planter downtime pushed the specialty block behind','weather: dry stretch stressing the dry bean block'] },
+  nonCrop:null, willingnessBaseline:35
+},
+{ id:'ibarra', name:'Reyna Ibarra', op:'Morgan County Aquaponics', county:'Morgan County', town:'Martinsville',
+  scale:'Startup facility, young operator, capital-constrained',
+  dependency:'Fully dependent on power reliability and financing runway; fish husbandry and greens harvest share the same tank-room labor',
+  demandDay:3,
+  crop:{ focus:'Aquaponic leafy greens (lettuce, basil) grown on the fish system\'s nutrient loop', channels:['restaurant_direct','food_hub_aggregator'], baseRev:[70,200], committedFraction:0.40,
+    statusPool:['harvesting lettuce rafts for a restaurant order','transplanting basil into the grow beds'],
+    issues:['system: pH drift in one grow bed, adjusting dosing','power: a brief outage spiked stress across the system'] },
+  nonCrop:{ focus:'Tilapia', label:'Tilapia', channels:['wholesale_distributor','online_delivery_platform'], baseRev:[90,240],
+    statusPool:['netting tilapia for a wholesale pull','grading fingerlings into the grow-out tank'],
+    issues:['power: backup generator didn\'t kick in during a grid blip, monitored fish stress','feed: fish feed shipment delayed, rationing the tanks','financing: delayed equipment payment tightened the month'] },
+  willingnessBaseline:65
+},
+{ id:'voss', name:'Earl & Jean Voss', op:'Tipton Ridge Farm', county:'Tipton County', town:'Tipton',
+  scale:'150 acres, elderly operators, succession undecided',
+  dependency:'Labor capacity shrinking with age, no confirmed successor; the storage-crop block competes with dairy chores for the same two people',
+  demandDay:2,
+  crop:{ focus:'Storage crops and food-grade grain (winter squash, dry beans, food-grade corn)', channels:['specialty_grocer','farm_stand'], baseRev:[80,240], committedFraction:0.45,
+    statusPool:['curing winter squash in the barn','sorting dry beans for a grocer order','combining the food-grade corn block'],
+    issues:['equipment: grain dryer acting up, held a lot back','weather: early frost risk to the squash still in the field'] },
+  nonCrop:{ focus:'Dairy and grass-fed beef', label:'Dairy/Beef', channels:['csa_addon','farm_stand'], baseRev:[90,280],
+    statusPool:['turning cheese wheels in the aging room','moving the herd to the back pasture','sorting steers for the fall beef order'],
+    issues:['labor: Earl\'s knee flared up, cut the work day short','herd: a cow came up lame, vet called out','feed: hay supply tight heading into winter, pricing out purchased hay'] },
+  willingnessBaseline:45
+}
+];
+
+const CHANNEL_LABELS = {
+  wholesale_distributor:'Wholesale distributor', farmers_market:'Farmers market', restaurant_direct:'Restaurant direct',
+  csa_delivery:'CSA delivery', online_delivery_platform:'Online delivery platform', farm_stand:'Farm stand / u-pick',
+  church_community_market:'Community market', school_district_pilot:'School district pilot', food_hub_aggregator:'Food hub',
+  online_shipping:'Online direct-ship', grain_wholesale:'Grain elevator', specialty_grocer:'Specialty grocer', csa_addon:'CSA add-on'
+};
+const CHANNEL_DAYS = {
+  wholesale_distributor:[2,4], restaurant_direct:[1,2,3,4,5], csa_delivery:[3], online_delivery_platform:[4],
+  farmers_market:[6], farm_stand:[0,5,6], church_community_market:[0], school_district_pilot:[1,2,3,4,5],
+  food_hub_aggregator:[1,4], online_shipping:[1,2,3,4,5], grain_wholesale:[1,2,3,4,5], specialty_grocer:[2,4], csa_addon:[3]
+};
+const WEATHER_BY_MONTH = {
+  9:[['clear, warm afternoons',72],['patchy morning fog, clearing',68],['scattered showers',66],['humid, thunderstorm risk late day',75],['first cool front, breezy',60]],
+  10:[['crisp and clear',58],['overcast, light rain',52],['first light frost overnight',36],['warm Indian-summer day',68],['steady rain, fieldwork paused',50]],
+  11:[['cold and windy',40],['gray, drizzling',42],['first hard freeze',28],['mild for the season',52]]
+};
+function weatherFor(iso, rng){
+  const m = monthOf(iso); const pool = WEATHER_BY_MONTH[m] || WEATHER_BY_MONTH[9];
+  const [cond, temp] = pick(rng, pool);
+  return { cond, temp: temp + Math.floor(rng()*6-3) };
+}
+
+/* ---------------- land-allocation decision generation ---------------- */
+const PLANNING_DATES = ['03-15','09-15'];
+function altTemplatesFor(trigger, c){
+  const cropShort = c.crop.focus.split('(')[0].trim();
+  const t = {
+    pre_planting: [
+      `hold ${cropShort} acreage steady for the coming season`,
+      `expand the ${cropShort} block by a small margin, trialing higher volume`,
+      `trial a new specialty block alongside the existing ${cropShort} lines`,
+      c.nonCrop ? `shift a small share of support acreage from ${c.nonCrop.label} toward ${cropShort}` : null,
+      c.nonCrop ? `expand ${c.nonCrop.label} at the margin, holding crop acreage flat` : null
+    ].filter(Boolean),
+    price_change: [
+      `hold position and wait out the price swing`,
+      `shift acreage away from the affected crop toward a steadier line`,
+      `lock in remaining volume through the standing wholesale relationship instead of spot sales`
+    ],
+    feed_shortage: c.nonCrop ? [
+      `source supplemental feed off-farm at higher cost`,
+      `reduce ${c.nonCrop.label.toLowerCase()} scale to match available feed`,
+      `convert a small acreage block from ${cropShort} to feed/forage production`
+    ] : [`hold current allocation, no feed-dependent enterprise to adjust`],
+    serious_disruption: [
+      `hold acreage, absorb the loss, and rebuild for next season`,
+      `reduce scale of the affected line to limit exposure`,
+      `invest in mitigation (equipment or infrastructure) before next season`
+    ]
+  };
+  return t[trigger] || [`hold current allocation`];
+}
+function generateLandDecision(c, cs, iso, trigger, rng){
+  const alts = altTemplatesFor(trigger, c);
+  const shuffled = [...alts].sort(()=>rng()-0.5);
+  const considered = shuffled.slice(0, Math.min(3, shuffled.length));
+  // persona-weighted pick: skeptical/conservative personas favor "hold"; open personas favor trial/expand
+  let decision;
+  const openness = c.willingnessBaseline; // reuse as a proxy for risk appetite at planning points
+  const holdOption = considered.find(a=>a.startsWith('hold'));
+  if (openness < 45 && holdOption && rng() < 0.65) decision = holdOption;
+  else decision = pick(rng, considered);
+
+  const [lo,hi] = c.crop.baseRev;
+  const monthlyAvg = Math.round(((lo+hi)/2) * 20);
+  const expectedRevenue = `$${Math.round(monthlyAvg*0.85).toLocaleString()}–$${Math.round(monthlyAvg*1.2).toLocaleString()} over the next planning window`;
+
+  let cropMultDelta = 0, nonCropMultDelta = 0, committedDelta = 0, willingnessDelta = 0, capacityChangeText='';
+  if (decision.startsWith('expand the') || decision.startsWith('trial a new')){
+    cropMultDelta = 0.05 + rng()*0.05; capacityChangeText = `+${Math.round(cropMultDelta*100)}% crop production capacity next season`;
+  } else if (decision.startsWith('hold')){
+    capacityChangeText = `no change — allocation holds steady`;
+  } else if (decision.includes('shift a small share') || decision.includes('convert a small acreage')){
+    cropMultDelta = 0.04; nonCropMultDelta = -0.06; committedDelta = -0.03;
+    capacityChangeText = `+4% crop production capacity, -6% non-crop scale, freeing ~3% IB-available capacity`;
+  } else if (decision.includes('expand') && decision.includes('holding crop acreage flat')){
+    nonCropMultDelta = 0.06; capacityChangeText = `+6% non-crop scale, crop line unchanged`;
+  } else if (decision.includes('shift acreage away from the affected crop')){
+    cropMultDelta = -0.05; capacityChangeText = `-5% crop production capacity, redirected toward a steadier line`;
+  } else if (decision.includes('lock in remaining volume')){
+    committedDelta = 0.05; capacityChangeText = `+5% committed fraction — less uncommitted IB-available capacity, more reliability`;
+  } else if (decision.includes('source supplemental feed')){
+    capacityChangeText = `no acreage change — added variable cost instead`;
+  } else if (decision.includes('reduce') && decision.includes('scale to match')){
+    nonCropMultDelta = -0.10; committedDelta = -0.04; capacityChangeText = `-10% non-crop scale, freeing ~4% IB-available capacity`;
+  } else if (decision.startsWith('reduce scale of the affected line')){
+    if (isSevere(cs._lastIssueLine==='nonCrop' ? cs._lastIssueText : '') && c.nonCrop) { nonCropMultDelta = -0.10; capacityChangeText = `-10% non-crop scale to limit exposure`; }
+    else { cropMultDelta = -0.08; capacityChangeText = `-8% crop production capacity to limit exposure`; }
+  } else if (decision.startsWith('invest in mitigation')){
+    capacityChangeText = `no immediate change — capital committed to reduce future disruption risk`;
+  }
+  if (trigger === 'price_change' || trigger === 'serious_disruption'){
+    willingnessDelta = decision.startsWith('hold') ? -1*Math.round(rng()*3) : Math.round(rng()*3);
+  }
+
+  return { date:iso, trigger, alternatives:considered, decision, expectedRevenue, capacityChangeText,
+    cropMultDelta, nonCropMultDelta, committedDelta, willingnessDelta };
+}
+
+/* ---------------- storage + archive helpers ---------------- */
+async function rawStorageGet(key){
+  try{
+    if (window.storage && typeof window.storage.get === 'function') return await window.storage.get(key, false);
+  } catch(e){ console.warn('window.storage read failed; falling back to localStorage', e); }
+  try{ const value = localStorage.getItem(key); return value === null ? null : { value }; }
+  catch(e){ console.warn('localStorage read failed', e); return null; }
+}
+async function rawStorageSet(key, value){
+  try{
+    if (window.storage && typeof window.storage.set === 'function') { await window.storage.set(key, value, false); return true; }
+  } catch(e){ console.warn('window.storage write failed; falling back to localStorage', e); }
+  try{ localStorage.setItem(key, value); return true; }
+  catch(e){ console.error('localStorage write failed', e); return false; }
+}
+
+function freshState(startISO){
+  const cultivators = {};
+  CULTIVATORS.forEach(c=>{
+    const cropChannelStats = {}; c.crop.channels.forEach(ch=>cropChannelStats[ch]={count:0,revenue:0});
+    const nonCropChannelStats = {}; if (c.nonCrop) c.nonCrop.channels.forEach(ch=>nonCropChannelStats[ch]={count:0,revenue:0});
+    cultivators[c.id] = {
+      cropRevenue:0, nonCropRevenue:0, totalRevenue:0, cropChannelStats, nonCropChannelStats,
+      activeIssues:[], cropStatus:'getting set up', nonCropStatus:null, lastWeather:null,
+      cropProductionCapacity:90, operationalReliability:90, willingness:c.willingnessBaseline,
+      cropScaleMultiplier:1.0, nonCropScaleMultiplier:1.0, committedFractionAdjust:0,
+      landDecisions:[], lastTrigger:{}, todayFlag:null, _lastIssueLine:null, _lastIssueText:''
+    };
+  });
+  return {
+    stateVersion:STATE_VERSION,
+    createdAt:new Date().toISOString(),
+    updatedAt:null,
+    lastSimDate:null,
+    startDate:startISO,
+    cultivators,
+    feed:[],
+    auditLog:[],
+    auditSeq:0,
+    dayLedger:[]
+  };
+}
+
+function normalizeState(raw){
+  if (!raw || typeof raw !== 'object') throw new Error('Archive does not contain a valid state object.');
+  if (!raw.startDate || !raw.cultivators || typeof raw.cultivators !== 'object') throw new Error('Archive is missing startDate or cultivator state.');
+
+  const expected = CULTIVATORS.map(c=>c.id).sort();
+  const actual = Object.keys(raw.cultivators).sort();
+  if (expected.length !== actual.length || expected.some((id,i)=>id !== actual[i])) throw new Error('Archive roster does not match this simulator version.');
+
+  const defaults = freshState(raw.startDate);
+  const s = deepClone(raw);
+  s.stateVersion = STATE_VERSION;
+  s.createdAt = s.createdAt || new Date().toISOString();
+  s.updatedAt = s.updatedAt || null;
+  s.lastSimDate = s.lastSimDate || null;
+  s.feed = Array.isArray(s.feed) ? s.feed : [];
+  s.dayLedger = Array.isArray(s.dayLedger) ? s.dayLedger : [];
+
+  CULTIVATORS.forEach(c=>{
+    s.cultivators[c.id] = { ...defaults.cultivators[c.id], ...s.cultivators[c.id] };
+    const cs=s.cultivators[c.id];
+    cs.cropChannelStats = { ...defaults.cultivators[c.id].cropChannelStats, ...(cs.cropChannelStats||{}) };
+    cs.nonCropChannelStats = { ...defaults.cultivators[c.id].nonCropChannelStats, ...(cs.nonCropChannelStats||{}) };
+    cs.activeIssues = Array.isArray(cs.activeIssues) ? cs.activeIssues : [];
+    cs.landDecisions = Array.isArray(cs.landDecisions) ? cs.landDecisions : [];
+    cs.lastTrigger = cs.lastTrigger || {};
+  });
+
+  if (Array.isArray(s.auditLog) && s.auditLog.length){
+    s.auditLog = s.auditLog.map((e,i)=>({ ...e, seq:Number.isFinite(e.seq)?e.seq:i+1 }));
+  } else {
+    // Legacy v2 migration: preserve every event still present in the rolling feed.
+    // Older events already discarded by v2 cannot be reconstructed.
+    s.auditLog = s.feed.map((e,i)=>({ ...e, seq:i+1, migratedFromLegacy:true }));
+  }
+  s.auditSeq = Math.max(Number(s.auditSeq)||0, ...s.auditLog.map(e=>Number(e.seq)||0), 0);
+  return s;
+}
+
+async function loadState(){
+  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]){
+    try{
+      const r = await rawStorageGet(key);
+      if (r && r.value) return normalizeState(JSON.parse(r.value));
+    } catch(e){ console.warn(`Could not load ${key}`, e); }
+  }
+  return null;
+}
+
+async function saveState(state){
+  state.updatedAt = new Date().toISOString();
+  await rawStorageSet(STORAGE_KEY, JSON.stringify(state));
+}
+
+function recordEvent(state, event){
+  const stored = { ...event, seq: ++state.auditSeq };
+  state.auditLog.push(stored);
+  state.feed.push(stored);
+  return stored;
+}
+
+function buildArchive(){
+  return {
+    archive:{
+      format:ARCHIVE_FORMAT,
+      version:ARCHIVE_VERSION,
+      exportedAt:new Date().toISOString(),
+      app:'Cultivator Network — Phase 1 Tracker',
+      roster:CULTIVATORS.map(c=>({id:c.id,name:c.name,operation:c.op})),
+      summary:{
+        startDate:STATE.startDate,
+        lastSimDate:STATE.lastSimDate,
+        daysTracked:daysTracked(),
+        auditEvents:STATE.auditLog.length,
+        ledgerDays:STATE.dayLedger.length
+      }
+    },
+    state:deepClone(STATE)
+  };
+}
+
+function exportArchive(){
+  const archive = buildArchive();
+  const blob = new Blob([JSON.stringify(archive,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const through = STATE.lastSimDate || 'not-started';
+  a.href = url;
+  a.download = `IB-Cultivator-Network_${STATE.startDate}_to_${through}_v${ARCHIVE_VERSION}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  document.getElementById('status-msg').textContent = `Archive exported: ${daysTracked()} day(s), ${STATE.auditLog.length} audit event(s).`;
+}
+
+async function importArchiveFile(file){
+  const text = await file.text();
+  const parsed = JSON.parse(text);
+  if (parsed.archive){
+    if (parsed.archive.format !== ARCHIVE_FORMAT) throw new Error('This JSON file is not a Cultivator Network archive.');
+    if ((parsed.archive.version||0) > ARCHIVE_VERSION) throw new Error(`Archive version ${parsed.archive.version} is newer than this simulator supports.`);
+  }
+  const candidate = parsed.state || parsed;
+  const imported = normalizeState(candidate);
+  STATE = imported;
+  await saveState(STATE);
+  render();
+  document.getElementById('status-msg').textContent = `Imported through ${STATE.lastSimDate || 'not started'} · ${STATE.auditLog.length} audit event(s).`;
+}
+
+/* ---------------- simulate one day ---------------- */
+function maybeTriggerLandDecision(c, cs, iso, trigger, state){
+  const cooldown = 20;
+  const last = cs.lastTrigger[trigger];
+  if (last && daysBetween(last, iso) < cooldown) return;
+  const rng = mulberry32(hashStr(c.id + iso + trigger));
+  const d = generateLandDecision(c, cs, iso, trigger, rng);
+  cs.lastTrigger[trigger] = iso;
+  cs.cropScaleMultiplier = clamp(cs.cropScaleMultiplier + d.cropMultDelta, 0.5, 1.6);
+  if (c.nonCrop) cs.nonCropScaleMultiplier = clamp(cs.nonCropScaleMultiplier + d.nonCropMultDelta, 0.5, 1.6);
+  cs.committedFractionAdjust = clamp(cs.committedFractionAdjust + d.committedDelta, -0.3, 0.3);
+  cs.willingness = clamp(cs.willingness + d.willingnessDelta, 0, 100);
+  cs.landDecisions.push(d);
+  const trigLabel = {pre_planting:'Pre-planting review', price_change:'Major price change', feed_shortage:'Feed shortage', serious_disruption:'Serious disruption'}[trigger] || trigger;
+  recordEvent(state,{ date:iso, id:c.id, name:c.name, line:'land', type:'land_decision', text:`[${trigLabel}] considered: ${d.alternatives.join(' / ')} — decided: ${d.decision}. Expected revenue ${d.expectedRevenue}. Capacity effect: ${d.capacityChangeText}` });
+}
+
+function simulateDay(state, iso){
+  const wd = weekday(iso);
+  const before = {};
+  CULTIVATORS.forEach(c=>{ const cs=state.cultivators[c.id]; before[c.id]={cropRevenue:cs.cropRevenue,nonCropRevenue:cs.nonCropRevenue,totalRevenue:cs.totalRevenue}; });
+  CULTIVATORS.forEach(c=>{
+    const rng = mulberry32(hashStr(c.id + iso));
+    const cs = state.cultivators[c.id];
+    const weather = weatherFor(iso, rng);
+    cs.lastWeather = weather;
+    cs.activeIssues = cs.activeIssues.filter(iss => rng() > 0.5 || (iso === iss.since));
+    const weatherBump = (weather.cond.includes('rain') || weather.cond.includes('storm') || weather.cond.includes('freeze')) ? 0.08 : 0;
+
+    let cropBlocked = false, cropDelayedByCare = false;
+    let nonCropSkipToday = false, nonCropYieldMult = 1, nonCropDeferredNote = null;
+    let missThisDay = false;
+
+    // --- non-crop line: hard constraint, always tended; may have an issue ---
+    if (c.nonCrop){
+      cs.nonCropStatus = pick(rng, c.nonCrop.statusPool);
+      if (rng() < 0.12 + weatherBump){
+        const text = pick(rng, c.nonCrop.issues);
+        cs.activeIssues.push({ text, since: iso, line:'nonCrop' });
+        cs._lastIssueLine='nonCrop'; cs._lastIssueText=text;
+        recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'ext', type:'issue', text });
+        // hard constraint priority rule: mandatory care took the labor. severity decides how hard crop gets hit.
+        if (isSevere(text)){ cropBlocked = true; cropDelayedByCare = true; }
+        else { cropDelayedByCare = true; } // moderate friction, handled via threshold below
+        if (text.startsWith('price:')) maybeTriggerLandDecision(c, cs, iso, 'price_change', state);
+        if (text.startsWith('feed:')) maybeTriggerLandDecision(c, cs, iso, 'feed_shortage', state);
+        if (isSevere(text)) maybeTriggerLandDecision(c, cs, iso, 'serious_disruption', state);
+      } else if (c.demandDay === wd){
+        // scheduled, predictable labor-heavy day for the non-crop enterprise — routine friction, not random
+        cropDelayedByCare = true;
+        recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'ext', type:'schedule', text:`${c.nonCrop.label} is a scheduled priority today — crop work runs second` });
+      }
+    }
+
+    // --- crop line ---
+    cs.cropStatus = pick(rng, c.crop.statusPool);
+    let cropChannelsActiveToday = c.crop.channels.filter(ch=>(CHANNEL_DAYS[ch]||[]).includes(wd)).length;
+    if (rng() < 0.10 + weatherBump){
+      const text = pick(rng, c.crop.issues);
+      cs.activeIssues.push({ text, since: iso, line:'crop' });
+      cs._lastIssueLine='crop'; cs._lastIssueText=text;
+      recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'crop', type:'issue', text });
+      if (isSevere(text)) { cropBlocked = true; maybeTriggerLandDecision(c, cs, iso, 'serious_disruption', state); }
+      if (text.startsWith('price:')) maybeTriggerLandDecision(c, cs, iso, 'price_change', state);
+    }
+    const harvestCrunch = cropChannelsActiveToday >= 2;
+
+    // reverse effect: crop crunch produces a negotiable consequence on the non-crop side, never overrides its care
+    if (harvestCrunch && c.nonCrop && !cropDelayedByCare){
+      const outcome = pick(rng, ['overtime','hired_labor','deferred_processing','missed_external_sale','reduced_productivity']);
+      if (outcome==='overtime'){ const cost=Math.round(20+rng()*50); cs.totalRevenue -= cost; recordEvent(state,{date:iso,id:c.id,name:c.name,line:'ext',type:'cost',text:`crop harvest crunch required overtime — $${cost} added labor cost`}); }
+      else if (outcome==='hired_labor'){ const cost=Math.round(60+rng()*90); cs.totalRevenue -= cost; recordEvent(state,{date:iso,id:c.id,name:c.name,line:'ext',type:'cost',text:`brought in hired help for the crop push — $${cost} added cost`}); }
+      else if (outcome==='deferred_processing'){ nonCropDeferredNote = 'processing deferred a day because of crop harvest demands'; }
+      else if (outcome==='missed_external_sale'){ nonCropSkipToday = true; recordEvent(state,{date:iso,id:c.id,name:c.name,line:'ext',type:'miss',text:`missed an external sale window while the crew was tied up harvesting`}); }
+      else if (outcome==='reduced_productivity'){ nonCropYieldMult = 0.5 + rng()*0.2; recordEvent(state,{date:iso,id:c.id,name:c.name,line:'ext',type:'yield',text:`${c.nonCrop.label.toLowerCase()} yield dipped — attention was on the crop push`}); }
+    }
+
+    // --- capacity stock updates ---
+    if (cs.activeIssues.some(i=>i.since===iso && i.line==='crop')) cs.cropProductionCapacity = clamp(cs.cropProductionCapacity - (isSevere(cs._lastIssueLine==='crop'?cs._lastIssueText:'')?15:8), 0, 100);
+    if (cropDelayedByCare) cs.cropProductionCapacity = clamp(cs.cropProductionCapacity - (cropBlocked?8:3), 0, 100);
+    if (!cropDelayedByCare && !cropBlocked) cs.cropProductionCapacity = clamp(cs.cropProductionCapacity + 2, 0, 100);
+
+    // --- crop sales (IB-eligible) ---
+    c.crop.channels.forEach(ch=>{
+      if ((CHANNEL_DAYS[ch]||[]).includes(wd) && !cropBlocked){
+        const threshold = cropDelayedByCare ? 0.55 : 0.82;
+        if (rng() < threshold){
+          const [lo,hi] = c.crop.baseRev;
+          const amt = Math.round((lo + rng()*(hi-lo)) * (0.7+rng()*0.6) * cs.cropScaleMultiplier);
+          cs.cropChannelStats[ch].count += 1; cs.cropChannelStats[ch].revenue += amt;
+          cs.cropRevenue += amt; cs.totalRevenue += amt;
+          recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'crop', type:'sale', text:`sold through ${CHANNEL_LABELS[ch]} — $${amt} (IB-eligible)` });
+        } else { missThisDay = true; }
+      }
+    });
+    if (cropBlocked || (cropDelayedByCare && cropChannelsActiveToday>0)) missThisDay = missThisDay || cropBlocked;
+
+    // --- non-crop sales (external only) ---
+    if (c.nonCrop){
+      c.nonCrop.channels.forEach(ch=>{
+        if ((CHANNEL_DAYS[ch]||[]).includes(wd) && !nonCropSkipToday && !nonCropDeferredNote){
+          if (rng() < 0.82){
+            const [lo,hi] = c.nonCrop.baseRev;
+            const amt = Math.round((lo + rng()*(hi-lo)) * (0.7+rng()*0.6) * cs.nonCropScaleMultiplier * nonCropYieldMult);
+            cs.nonCropChannelStats[ch].count += 1; cs.nonCropChannelStats[ch].revenue += amt;
+            cs.nonCropRevenue += amt; cs.totalRevenue += amt;
+            recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'ext', type:'sale', text:`sold through ${CHANNEL_LABELS[ch]} — $${amt} (external)` });
+          }
+        }
+      });
+      if (nonCropDeferredNote) recordEvent(state,{ date: iso, id:c.id, name:c.name, line:'ext', type:'deferred', text:nonCropDeferredNote });
+    }
+
+    // --- operational reliability ---
+    cs.operationalReliability = missThisDay ? clamp(cs.operationalReliability - 7, 0, 100) : clamp(cs.operationalReliability + 1, 0, 100);
+
+    cs.todayFlag = cropBlocked ? 'blocked' : (cropDelayedByCare ? 'delayed' : null);
+
+    // seasonal planning point (fires once per date crossing, independent of issues)
+    if (PLANNING_DATES.includes(mmdd(iso))) maybeTriggerLandDecision(c, cs, iso, 'pre_planting', state);
+  });
+  state.dayLedger.push({
+    date:iso,
+    cultivators:CULTIVATORS.map(c=>{
+      const cs=state.cultivators[c.id], b=before[c.id];
+      return {
+        id:c.id,
+        cropRevenue:cs.cropRevenue-b.cropRevenue,
+        nonCropRevenue:cs.nonCropRevenue-b.nonCropRevenue,
+        totalRevenue:cs.totalRevenue-b.totalRevenue,
+        cropProductionCapacity:cs.cropProductionCapacity,
+        ibAvailableCapacity:ibAvailable(c,cs),
+        operationalReliability:cs.operationalReliability,
+        willingness:cs.willingness,
+        cropScaleMultiplier:cs.cropScaleMultiplier,
+        nonCropScaleMultiplier:cs.nonCropScaleMultiplier,
+        committedFractionAdjust:cs.committedFractionAdjust,
+        todayFlag:cs.todayFlag,
+        weather:cs.lastWeather ? deepClone(cs.lastWeather) : null,
+        cropStatus:cs.cropStatus,
+        nonCropStatus:cs.nonCropStatus,
+        activeIssues:deepClone(cs.activeIssues)
+      };
+    })
+  });
+  // The screen feed stays lightweight; auditLog + dayLedger remain complete and are never trimmed.
+  if (state.feed.length > 600) state.feed = state.feed.slice(state.feed.length-600);
+}
+
+function catchUp(state, todayISO, cap){
+  let start = state.lastSimDate ? addDays(state.lastSimDate, 1) : state.startDate;
+  let count = 0, cursor = start;
+  while (cursor <= todayISO && count < cap){
+    simulateDay(state, cursor); state.lastSimDate = cursor; cursor = addDays(cursor, 1); count++;
+  }
+  return count;
+}
+
+/* ---------------- rendering ---------------- */
+let STATE = null;
+function daysTracked(){
+  if (!STATE || !STATE.lastSimDate) return 0;
+  const start = new Date(STATE.startDate+'T00:00:00Z'); const end = new Date(STATE.lastSimDate+'T00:00:00Z');
+  return Math.round((end-start)/86400000)+1;
+}
+function ibAvailable(c, cs){
+  const committed = clamp(c.crop.committedFraction + cs.committedFractionAdjust, 0, 0.9);
+  return Math.round(clamp(cs.cropProductionCapacity * (1-committed) * cs.cropScaleMultiplier, 0, 100));
+}
+
+function render(){
+  document.getElementById('day-count').textContent = daysTracked();
+  document.getElementById('sim-date').textContent = STATE.lastSimDate || '—';
+
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = '';
+  CULTIVATORS.forEach(c=>{
+    const cs = STATE.cultivators[c.id];
+    const hasIssue = cs.activeIssues.length>0;
+    const card = document.createElement('div'); card.className='card';
+    const cropChips = c.crop.channels.map(ch=>`<span class="crop">${CHANNEL_LABELS[ch]}</span>`).join('');
+    const extChips = c.nonCrop ? c.nonCrop.channels.map(ch=>`<span class="ext">${CHANNEL_LABELS[ch]}</span>`).join('') : '';
+    const iac = ibAvailable(c, cs);
+
+    const recentLog = STATE.feed.filter(f=>f.id===c.id).slice(-8).reverse()
+      .map(f=>`<div class="log-entry"><span class="tag ${f.line==='crop'?'crop':(f.line==='land'?'land':'ext')}">${f.line==='crop'?'CROP':(f.line==='land'?'LAND':'EXT')}</span><b>${escapeHtml(f.date)}</b> — ${escapeHtml(f.text)}</div>`).join('')
+      || '<div class="log-entry">No activity yet.</div>';
+    const landLog = cs.landDecisions.slice(-3).reverse()
+      .map(d=>`<div class="land-entry"><span class="trig">${escapeHtml(d.trigger)}</span> · ${escapeHtml(d.date)} — decided: ${escapeHtml(d.decision)}. ${escapeHtml(d.capacityChangeText)}</div>`).join('')
+      || '<div class="land-entry">No planning-point decisions yet.</div>';
+
+    card.innerHTML = `
+      <div class="rowtop">
+        <div><h3>${c.name}</h3><div class="loc">${c.op} · ${c.town}, ${c.county}</div></div>
+        <span class="badge ${hasIssue?'issue':'ok'}">${hasIssue?'issue active':'running normally'}</span>
+      </div>
+      <p class="focusline">Crop (IB-eligible): ${c.crop.focus}</p>
+      ${c.nonCrop ? `<p class="focusline ext">External: ${c.nonCrop.focus}</p>` : ''}
+      <div class="today">today — crop: ${cs.cropStatus}${cs.lastWeather ? ` <span style="color:var(--ink-soft)">(${cs.lastWeather.cond}, ~${cs.lastWeather.temp}°F)</span>` : ''}${cs.nonCropStatus ? `<br><span class="ext">today — external: ${cs.nonCropStatus}</span>` : ''}</div>
+      ${cs.todayFlag==='blocked' ? `<div class="flag">Mandatory care took priority today — crop-line sales were blocked.</div>` : (cs.todayFlag==='delayed' ? `<div class="flag">Mandatory care came first today — crop work ran on a reduced schedule.</div>` : '')}
+      ${hasIssue ? `<div class="issues-line">${cs.activeIssues.map(i=>escapeHtml(i.text)).join(' · ')}</div>` : ''}
+      <div class="metrics">
+        <div>Crop revenue<b>$${cs.cropRevenue.toLocaleString()}</b></div>
+        ${c.nonCrop ? `<div class="ext">External revenue<b>$${cs.nonCropRevenue.toLocaleString()}</b></div>` : ''}
+        <div>Whole-farm total<b>$${cs.totalRevenue.toLocaleString()}</b></div>
+      </div>
+      <div class="capbox">
+        <div class="caprow"><span class="label">Crop production capacity</span><span class="bar"><span class="fill cpc" style="width:${cs.cropProductionCapacity}%"></span></span><span class="val">${cs.cropProductionCapacity}</span></div>
+        <div class="caprow"><span class="label">IB-available capacity</span><span class="bar"><span class="fill iac" style="width:${iac}%"></span></span><span class="val">${iac}</span></div>
+        <div class="caprow"><span class="label">Operational reliability</span><span class="bar"><span class="fill orl" style="width:${cs.operationalReliability}%"></span></span><span class="val">${cs.operationalReliability}</span></div>
+        <div class="caprow"><span class="label">Willingness to engage*</span><span class="bar"><span class="fill wil" style="width:${cs.willingness}%"></span></span><span class="val">${cs.willingness}</span></div>
+      </div>
+      <div class="channels">${cropChips}${extChips}</div>
+      <details><summary>Recent activity</summary>${recentLog}</details>
+      <details><summary>Land &amp; allocation decisions</summary>${landLog}</details>
+    `;
+    grid.appendChild(card);
+  });
+
+  const feedEl = document.getElementById('feed');
+  const items = STATE.feed.slice(-80).reverse();
+  feedEl.innerHTML = items.map(f=>`<div class="log-entry"><span class="tag ${f.line==='crop'?'crop':(f.line==='land'?'land':'ext')}">${f.line==='crop'?'CROP':(f.line==='land'?'LAND':'EXT')}</span><b>${escapeHtml(f.date)}</b> · ${escapeHtml(f.name)} — ${escapeHtml(f.text)}</div>`).join('')
+    || '<div class="log-entry">No activity yet — sync to today to begin.</div>';
+}
+
+async function loadCloud(){
+  const msg=document.getElementById('status-msg');
+  msg.textContent='Loading cloud state…';
+  try{
+    const res=await fetch('https://ahkiitrdovuxjjkjkihc.supabase.co/functions/v1/read-cultivator',{cache:'no-store'});
+    if(!res.ok) throw new Error('Cloud reader returned '+res.status);
+    const payload=await res.json();
+    if(payload.error) throw new Error(payload.error);
+    STATE=payload.state;
+    render();
+    msg.textContent='Cloud state current through '+(STATE.lastSimDate||payload.simulation?.last_sim_date||'—')+'.';
+  }catch(err){
+    console.error(err);
+    msg.textContent='Cloud state unavailable: '+err.message;
+  }
+}
+
+async function init(){
+  await loadCloud();
+  setInterval(loadCloud,60000);
+}
+
+document.getElementById('sync-btn').addEventListener('click',loadCloud);
+document.getElementById('export-btn').addEventListener('click',()=>exportArchive());
+document.getElementById('advance-btn').style.display='none';
+document.getElementById('reset-btn').style.display='none';
+document.getElementById('import-btn').style.display='none';
+document.getElementById('import-file').style.display='none';
+
+init();
+</script>
+</body>
+</html>
