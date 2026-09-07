@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cultivator Simulator — Owner Time Controls</title>
+<style>
+:root{--paper:#F5F1E4;--card:#FBF9F2;--ink:#26241C;--soft:#57543F;--line:#D8D0B8;--green:#2B331D;--clay:#AD5A2B}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px Inter,Arial,sans-serif}.wrap{max-width:760px;margin:0 auto;padding:28px 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px;margin:14px 0}h1,h2{font-family:Georgia,serif;color:var(--green)}h1{margin:0 0 6px}.muted{color:var(--soft)}.current{font:700 18px monospace;background:var(--green);color:var(--paper);display:inline-block;padding:10px 13px;border-radius:4px}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}button{font-weight:700;padding:10px 13px;border:1.5px solid var(--green);background:var(--card);color:var(--green);border-radius:4px;cursor:pointer}button:hover{background:var(--green);color:white}button.danger{border-color:var(--clay);color:var(--clay)}button:disabled{opacity:.45;cursor:not-allowed}input{padding:10px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink)}input[type=date]{font:600 14px monospace}input[type=password]{min-width:290px}.status{margin-top:12px;padding:10px 12px;background:#EFE7D0;border-left:3px solid #C79A34;min-height:40px}.note{font-size:12px;color:var(--soft);margin-top:8px}a{color:var(--green);font-weight:700}iframe{display:none}
+</style></head>
+<body><div class="wrap">
+<div class="muted">INDYpendent Bytes · Owner controls</div>
+<h1>Cultivator Simulator Time Control</h1>
+<p class="muted">Advance or rewind the authoritative cloud simulation. Rewinding deterministically rebuilds the simulation from its original start date, so the selected day becomes the new active state.</p>
+<div class="card">
+<h2>Current position</h2>
+<div class="current">Day <span id="day">—</span> · <span id="date">—</span></div>
+<div class="row"><button id="refresh">Refresh</button><a href="./">Open dashboard</a></div>
+</div>
+<div class="card">
+<h2>Move the clock</h2>
+<div class="row">
+<button data-shift="-30">−30 days</button><button data-shift="-7">−7</button><button data-shift="-1">−1</button>
+<button data-shift="1">+1</button><button data-shift="7">+7</button><button data-shift="30">+30 days</button>
+</div>
+<div class="row"><label>Jump to date <input id="target" type="date"></label><button id="apply">Apply date</button></div>
+<div class="row"><label>Jump to day <input id="targetDay" type="number" min="1" step="1" style="width:110px"></label><button id="applyDay">Apply day</button></div>
+<div class="note">A backward move replaces later simulated history. A forward move can go beyond today's real date. Maximum jump from the start is 3,650 days.</div>
+</div>
+<div class="card">
+<h2>Owner access</h2>
+<div class="row"><input id="key" type="password" placeholder="Owner key"><label><input id="remember" type="checkbox" checked> remember on this device</label></div>
+<div class="note">The key is never stored in this repository. If remembered, it is stored only in this browser's local storage.</div>
+</div>
+<div class="status" id="status">Loading cloud state…</div>
+<iframe id="engine" src="./" title="simulation engine"></iframe>
+</div>
+<script>
+const BASE='https://ahkiitrdovuxjjkjkihc.supabase.co/functions/v1';
+const READ=BASE+'/read-cultivator', SAVE=BASE+'/owner-cultivator-state';
+const KEYSTORE='ib-simulator-owner-key';
+let cloud=null;
+const $=id=>document.getElementById(id);
+function addDays(iso,n){const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function diff(a,b){return Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000)}
+function setStatus(s){$('status').textContent=s}
+function render(){if(!cloud)return;const s=cloud.state;$('date').textContent=s.lastSimDate||'—';$('day').textContent=s.lastSimDate?diff(s.startDate,s.lastSimDate)+1:0;$('target').min=s.startDate;$('target').max=addDays(s.startDate,3649);$('target').value=s.lastSimDate||s.startDate;$('targetDay').max=3650;$('targetDay').value=s.lastSimDate?diff(s.startDate,s.lastSimDate)+1:1}
+async function refresh(){setStatus('Refreshing cloud state…');const r=await fetch(READ,{cache:'no-store'});const p=await r.json();if(!r.ok||p.error)throw new Error(p.error||('Reader returned '+r.status));cloud=p;render();setStatus('Ready. Current cloud state: Day '+$('day').textContent+' · '+$('date').textContent)}
+function engine(){const w=$('engine').contentWindow;if(!w?.freshState||!w?.catchUp||!w?.deepClone)throw new Error('Simulation engine is not ready yet. Reload this page and try again.');return w}
+function ownerKey(){const k=$('key').value.trim();if(!k)throw new Error('Enter your owner key first.');if($('remember').checked)localStorage.setItem(KEYSTORE,k);else localStorage.removeItem(KEYSTORE);return k}
+async function moveTo(target){
+ if(!cloud)await refresh();const cur=cloud.state;if(target<cur.startDate)throw new Error('Target is before the simulation start date '+cur.startDate+'.');if(diff(cur.startDate,target)>3649)throw new Error('Target exceeds the 3,650-day owner-control limit.');
+ const e=engine();const backward=cur.lastSimDate&&target<cur.lastSimDate;
+ if(backward&&!confirm('Rewind to '+target+'? Later simulated history will be replaced.'))return;
+ setStatus((backward?'Rebuilding':'Advancing')+' simulation to '+target+'…');
+ let next;
+ if(backward){next=e.freshState(cur.startDate);e.catchUp(next,target,diff(cur.startDate,target)+5)}
+ else{next=e.deepClone(cur);const need=cur.lastSimDate?Math.max(0,diff(cur.lastSimDate,target)):diff(cur.startDate,target)+1;e.catchUp(next,target,need+5)}
+ if(next.lastSimDate!==target)throw new Error('Engine stopped at '+next.lastSimDate+' instead of '+target+'.');
+ const r=await fetch(SAVE,{method:'POST',headers:{'content-type':'application/json','x-systems-owner-token':ownerKey()},body:JSON.stringify({state:next,mode:backward?'rewind':'advance'})});
+ const p=await r.json();if(!r.ok||!p.ok)throw new Error(p.error||('Owner control returned '+r.status));
+ await refresh();setStatus((backward?'Rewound':'Advanced')+' successfully to Day '+$('day').textContent+' · '+$('date').textContent+'.');
+}
+async function guarded(fn){try{document.querySelectorAll('button').forEach(b=>b.disabled=true);await fn()}catch(e){console.error(e);setStatus('Error: '+e.message)}finally{document.querySelectorAll('button').forEach(b=>b.disabled=false)}}
+$('refresh').onclick=()=>guarded(refresh);
+document.querySelectorAll('[data-shift]').forEach(b=>b.onclick=()=>guarded(()=>moveTo(addDays(cloud.state.lastSimDate,Number(b.dataset.shift)))));
+$('apply').onclick=()=>guarded(()=>moveTo($('target').value));
+$('applyDay').onclick=()=>guarded(()=>{const n=Number($('targetDay').value);if(!Number.isInteger(n)||n<1||n>3650)throw new Error('Day must be between 1 and 3650.');return moveTo(addDays(cloud.state.startDate,n-1))});
+$('key').value=localStorage.getItem(KEYSTORE)||'';
+$('engine').addEventListener('load',()=>refresh().catch(e=>setStatus('Error: '+e.message)));
+</script></body></html>
